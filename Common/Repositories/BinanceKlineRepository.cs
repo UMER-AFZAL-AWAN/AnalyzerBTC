@@ -1,9 +1,8 @@
-﻿using Fetcher.Models;
-using Npgsql;
+﻿using Npgsql;
 
-namespace Fetcher.Repositories
+namespace Common.Models
 {
-    internal class BinanceKlineRepository
+    public class BinanceKlineRepository
     {
         private readonly string _connectionString;
         public BinanceKlineRepository(string connectionString)

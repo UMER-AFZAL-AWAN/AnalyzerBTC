@@ -1,4 +1,4 @@
-﻿using Fetcher.Models;
+﻿using Common.Models;
 using Npgsql;
 namespace Fetcher.Repositories
 {
@@ -49,8 +49,13 @@ namespace Fetcher.Repositories
             cmd.Parameters.AddWithValue("LastId", ticker.LastId);
             cmd.Parameters.AddWithValue("Count", ticker.Count);
 
-            var id = (int)await cmd.ExecuteScalarAsync();
-            return id;
+            var result = await cmd.ExecuteScalarAsync();
+
+            if (result == null || result == DBNull.Value)
+                return -1; // or throw
+
+            return Convert.ToInt32(result);
+
         }
 
         public async Task<BinanceTicker?> GetTickerByIdAsync(int id)
@@ -123,7 +128,7 @@ namespace Fetcher.Repositories
         {
             return new BinanceTicker
             {
-                Symbol = reader["Symbol"].ToString(),
+                Symbol = reader.IsDBNull(reader.GetOrdinal("symbol")) ? string.Empty : reader.GetString(reader.GetOrdinal("symbol")),
                 PriceChange = reader.GetFieldValue<decimal>(reader.GetOrdinal("PriceChange")),
                 PriceChangePercent = reader.GetFieldValue<decimal>(reader.GetOrdinal("PriceChangePercent")),
                 WeightedAvgPrice = reader.GetFieldValue<decimal>(reader.GetOrdinal("WeightedAvgPrice")),

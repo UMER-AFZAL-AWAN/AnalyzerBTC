@@ -1,9 +1,9 @@
-﻿using Fetcher.Models;
+﻿using Common.Models;
 using System.Text.Json;
 
-namespace Fetcher.Services
+namespace Common.Services
 {
-    internal class BinanceApiService
+    public class BinanceApiService
     {
         private readonly HttpClient _httpClient;
 

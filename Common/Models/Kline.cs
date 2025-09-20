@@ -1,4 +1,4 @@
-﻿namespace Fetcher.Models
+﻿namespace Common.Models
 {
     public class Kline
     {

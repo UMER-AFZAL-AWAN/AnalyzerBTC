@@ -1,6 +1,5 @@
-﻿using Fetcher.Models;
-using Fetcher.Repositories;
-using Fetcher.Services;
+﻿using Common.Models;
+using Common.Services;
 
 namespace Fetcher
 {
