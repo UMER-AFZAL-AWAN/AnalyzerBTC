@@ -1,6 +1,6 @@
 ﻿using Fetcher.Models;
 using Fetcher.Repositories;
-using Fetcher.Services;
+using Fetcher.Utilities;
 using System.Text.Json;
 
 namespace Fetcher
@@ -9,7 +9,7 @@ namespace Fetcher
     {
         static void Main(string[] args)
         {
-            // Ask for DB password securely
+            // Secure DB password input
             Console.Write("Enter database password: ");
             string password = ReadPassword();
 
@@ -18,58 +18,73 @@ namespace Fetcher
             var httpClient = new HttpClient { BaseAddress = new Uri("https://api.binance.com") };
             var repo = new BinanceKlineRepository(connString);
 
-            // 1. Fetch hourly candles
-            var response = httpClient.GetAsync("/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=50")
-                                     .GetAwaiter().GetResult();
+            Console.WriteLine("🚀 Starting Binance Kline fetcher...");
+            Console.WriteLine("Press '5' anytime to exit.\n");
 
-            response.EnsureSuccessStatusCode();
-            var json = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-
-            // 2. Parse JSON
-            var raw = JsonSerializer.Deserialize<List<List<JsonElement>>>(json);
-
-            var klines = new List<Kline>();
-            foreach (var k in raw)
+            while (true)
             {
-                klines.Add(new Kline
+                if (Console.KeyAvailable && Console.ReadKey(true).Key == ConsoleKey.D5)
                 {
-                    Symbol = "BTCUSDT",
-                    OpenTime = DateTimeOffset.FromUnixTimeMilliseconds(k[0].GetInt64()).UtcDateTime,
-                    Open = decimal.Parse(k[1].GetString()),
-                    High = decimal.Parse(k[2].GetString()),
-                    Low = decimal.Parse(k[3].GetString()),
-                    Close = decimal.Parse(k[4].GetString()),
-                    Volume = decimal.Parse(k[5].GetString()),
-                    CloseTime = DateTimeOffset.FromUnixTimeMilliseconds(k[6].GetInt64()).UtcDateTime,
-                    QuoteVolume = decimal.Parse(k[7].GetString()),
-                    TradeCount = k[8].GetInt32(),
-                    TakerBuyBaseVolume = decimal.Parse(k[9].GetString()),
-                    TakerBuyQuoteVolume = decimal.Parse(k[10].GetString())
-                });
-            }
+                    Console.WriteLine("🛑 Exiting loop...");
+                    break;
+                }
 
-            // 3. Store into DB
-            foreach (var k in klines)
-            {
-                var newId = repo.InsertKlineAsync(k).GetAwaiter().GetResult();
-                Console.WriteLine($"Inserted Kline at {k.OpenTime} with Id {newId}");
-            }
+                try
+                {
+                    // Fetch last 100 candles
+                    var response = httpClient.GetAsync("/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=100")
+                                             .GetAwaiter().GetResult();
+                    response.EnsureSuccessStatusCode();
+                    var json = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
 
-            Console.WriteLine("✅ All candles stored in DB.");
+                    var raw = JsonSerializer.Deserialize<List<List<JsonElement>>>(json);
+
+                    var klines = new List<Kline>();
+                    foreach (var k in raw)
+                    {
+                        klines.Add(new Kline
+                        {
+                            Symbol = "BTCUSDT",
+                            OpenTime = DateTimeOffset.FromUnixTimeMilliseconds(k[0].GetInt64()).UtcDateTime,
+                            Open = SafeParser.ParseDecimal(k[1].GetString()),
+                            High = SafeParser.ParseDecimal(k[2].GetString()),
+                            Low = SafeParser.ParseDecimal(k[3].GetString()),
+                            Close = SafeParser.ParseDecimal(k[4].GetString()),
+                            Volume = SafeParser.ParseDecimal(k[5].GetString()),
+                            CloseTime = DateTimeOffset.FromUnixTimeMilliseconds(k[6].GetInt64()).UtcDateTime,
+                            QuoteVolume = SafeParser.ParseDecimal(k[7].GetString()),
+                            TradeCount = SafeParser.ParseInt(k[8].GetString()),
+                            TakerBuyBaseVolume = SafeParser.ParseDecimal(k[9].GetString()),
+                            TakerBuyQuoteVolume = SafeParser.ParseDecimal(k[10].GetString())
+                        });
+                    }
+
+                    // Store in DB
+                    foreach (var k in klines)
+                    {
+                        var id = repo.InsertKlineAsync(k).GetAwaiter().GetResult();
+                        Console.WriteLine($"✅ Inserted Kline at {k.OpenTime} (ID: {id})");
+                    }
+
+                    Thread.Sleep(2000); // Avoid API ban
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ Error: {ex.Message}");
+                }
+            }
         }
 
         /// <summary>
-        /// Reads password from console without echoing characters.
+        /// Secure password input with * masking
         /// </summary>
         static string ReadPassword()
         {
             var password = string.Empty;
             ConsoleKeyInfo key;
-
             do
             {
                 key = Console.ReadKey(intercept: true);
-
                 if (key.Key == ConsoleKey.Backspace && password.Length > 0)
                 {
                     password = password[..^1];
@@ -78,7 +93,7 @@ namespace Fetcher
                 else if (!char.IsControl(key.KeyChar))
                 {
                     password += key.KeyChar;
-                    Console.Write("*"); // Mask with *
+                    Console.Write("*");
                 }
             } while (key.Key != ConsoleKey.Enter);
 

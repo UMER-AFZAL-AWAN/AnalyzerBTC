@@ -1,14 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Fetcher.Models
+﻿namespace Fetcher.Models
 {
-    internal class Kline
+    public class Kline
     {
-        public string Symbol { get; set; } = "BTCUSDT";
+        public int Id { get; set; }
+        public string Symbol { get; set; } = string.Empty;
         public DateTime OpenTime { get; set; }
         public decimal Open { get; set; }
         public decimal High { get; set; }
